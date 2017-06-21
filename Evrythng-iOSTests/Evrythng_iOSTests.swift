@@ -7,7 +7,8 @@
 //
 
 import XCTest
-@testable import Evrythng_iOS
+//@testable import Evrythng_iOS
+@testable import EvrythngiOS
 
 class Evrythng_iOSTests: XCTestCase {
     

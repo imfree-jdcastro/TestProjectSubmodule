@@ -15,6 +15,8 @@ import Alamofire
 
 public class EvrythngUserCreator: EvrythngNetworkExecutableProtocol {
     
+    public var apiKey: String?
+    
     private var user: User?
     private var credentials: Credentials!
     
@@ -34,17 +36,22 @@ public class EvrythngUserCreator: EvrythngNetworkExecutableProtocol {
         
         let epClosure = { (target: EvrythngNetworkService) -> Endpoint<EvrythngNetworkService> in
             
-            
             if case is CompositeEncoding = target.params?.encoding  {
                 if let params = target.params?.values["query"] {
-                    print("\(target.defaultURL.absoluteString)")
+                    
+                    if(Evrythng.DEBUGGING_ENABLED) {
+                        print("\(target.defaultURL.absoluteString)")
+                    }
+                    
                     let url = URLHelper.addOrUpdateQueryStringParameter(url: target.defaultURL.absoluteString, values: params as! [String : String])
                     
                     let test = Endpoint<EvrythngNetworkService>(url: url, sampleResponseClosure: {
                         return EndpointSampleResponse.networkResponse(200, target.sampleData)
                     }, method: .post, parameters: target.params?.values, parameterEncoding: (target.params?.encoding)!, httpHeaderFields: target.httpHeaderFields)
                     
-                    print("Absolute Url: \(test.url)")
+                    if(Evrythng.DEBUGGING_ENABLED) {
+                        print("Absolute Url: \(test.url)")
+                    }
                     return test
                 }
             }
@@ -52,12 +59,15 @@ public class EvrythngUserCreator: EvrythngNetworkExecutableProtocol {
             return Endpoint<EvrythngNetworkService>(url: target.url.absoluteString, sampleResponseClosure: target.sampleResponseClosure, method: target.method, parameters: target.params?.values, parameterEncoding: target.params!.encoding, httpHeaderFields: target.httpHeaderFields)
         }
         
-        return EvrythngMoyaProvider<EvrythngNetworkService>(endpointClosure: epClosure)
+        let provider = EvrythngMoyaProvider<EvrythngNetworkService>(endpointClosure: epClosure)
+        provider.apiKey = self.apiKey
+        
+        return provider
     }
     
     public func execute(completionHandler: @escaping (Credentials?, Swift.Error?) -> Void) {
         
-        let userRepo = EvrythngNetworkService.createUser(user: self.user, isAnonymous: (self.user == nil))
+        let userRepo = EvrythngNetworkService.createUser(apiKey: self.apiKey, user: self.user)
         //let provider = MoyaSugarProvider<EvrythngNetworkService>()
         
         self.getDefaultProvider().request(userRepo) { result in
@@ -66,7 +76,10 @@ public class EvrythngUserCreator: EvrythngNetworkExecutableProtocol {
                 let data = moyaResponse.data
                 let statusCode = moyaResponse.statusCode
                 let datastring = NSString(data: data, encoding: String.Encoding.utf8.rawValue)
-                print("Data: \(datastring!) Status Code: \(statusCode)")
+                
+                if(Evrythng.DEBUGGING_ENABLED) {
+                    print("Data: \(datastring!) Status Code: \(statusCode)")
+                }
                 
                 if(200..<300 ~= statusCode) {
                     do {
@@ -79,7 +92,11 @@ public class EvrythngUserCreator: EvrythngNetworkExecutableProtocol {
                 } else {
                     do {
                         let err = try moyaResponse.map(to: EvrythngNetworkErrorResponse.self)
-                        print("EvrythngNetworkErrorResponse: \(err.jsonData?.rawString())")
+                        
+                        if(Evrythng.DEBUGGING_ENABLED) {
+                            print("EvrythngNetworkErrorResponse: \(String(describing: err.jsonData?.rawString()))")
+                        }
+                        
                         completionHandler(nil, EvrythngNetworkError.ResponseError(response: err))
                     } catch {
                         print(error)
